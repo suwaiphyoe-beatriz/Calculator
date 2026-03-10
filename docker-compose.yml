@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+
+  db:
+    image: mariadb:11
+    container_name: calculator-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: swp123
+      MYSQL_DATABASE: calc_data
+    ports:
+      - "3307:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    image: suph03/sum-product-fx:latest
+    container_name: calculator-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: swp123
+      DISPLAY: host.docker.internal:0.0
+      LIBGL_ALWAYS_SOFTWARE: 1
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+
+  jenkins:
+    image: jenkins/jenkins:lts-jdk21
+    container_name: calculator-jenkins
+    restart: unless-stopped
+    privileged: true
+    user: root
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  db_data:
+  jenkins_home:
